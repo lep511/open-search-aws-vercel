@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 
 interface SearchHit {
   id: string
@@ -15,7 +16,8 @@ interface SearchResult {
 }
 
 function HighlightedText({ html }: { html: string }) {
-  return <span dangerouslySetInnerHTML={{ __html: html }} />
+  const clean = DOMPurify.sanitize(html, { ALLOWED_TAGS: ['mark'] })
+  return <span dangerouslySetInnerHTML={{ __html: clean }} />
 }
 
 function truncate(text: string, maxLen: number) {
@@ -117,6 +119,15 @@ export function SearchInterface() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (selectedDoc) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [selectedDoc])
 
   function toggleTag(tag: string) {
     setActiveTags(prev =>
@@ -275,7 +286,7 @@ export function SearchInterface() {
               return (
                 <article key={hit.id} className="surface rounded-xl p-5">
                   <div className="flex items-start justify-between gap-4">
-                    <h3 className="text-base font-semibold [&_mark]:underline [&_mark]:decoration-2 [&_mark]:underline-offset-2 [&_mark]:bg-transparent [&_mark]:text-[var(--text)]">
+                    <h3 className="text-base font-semibold [&_mark]:bg-[#bbf7d0] [&_mark]:dark:bg-[#22c55e33] [&_mark]:text-[var(--text)] [&_mark]:rounded-sm [&_mark]:px-0.5 [&_mark]:no-underline">
                       {highlightedTitle ? <HighlightedText html={highlightedTitle} /> : hit.source.title}
                     </h3>
                     <button
@@ -285,7 +296,7 @@ export function SearchInterface() {
                       read
                     </button>
                   </div>
-                  <p className="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3 [&_mark]:underline [&_mark]:decoration-1 [&_mark]:underline-offset-2 [&_mark]:bg-transparent [&_mark]:font-medium">
+                  <p className="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3 [&_mark]:bg-[#bbf7d0] [&_mark]:dark:bg-[#22c55e33] [&_mark]:text-[var(--text)] [&_mark]:rounded-sm [&_mark]:px-0.5 [&_mark]:no-underline [&_mark]:font-medium">
                     <HighlightedText html={displayContent} />
                   </p>
                   <div className="mt-4 flex items-center gap-3">

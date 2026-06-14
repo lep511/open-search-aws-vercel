@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState<boolean | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('theme')
@@ -18,6 +18,12 @@ export function ThemeToggle() {
     setDark(next)
     document.documentElement.classList.toggle('dark', next)
     localStorage.setItem('theme', next ? 'dark' : 'light')
+  }
+
+  if (dark === null) {
+    return (
+      <span className="surface rounded-full p-2 inline-block h-8 w-8" />
+    )
   }
 
   return (

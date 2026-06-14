@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export function IndexPanel() {
   const [open, setOpen] = useState(false)
@@ -67,6 +67,15 @@ export function IndexPanel() {
 
     setTimeout(() => setToast(null), 3000)
   }
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [open])
 
   return (
     <>
