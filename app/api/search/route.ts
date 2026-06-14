@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import getClient from '@/lib/opensearch'
 import { INDEX_NAME } from '@/lib/constants'
 import { generateQueryEmbedding, dotProduct } from '@/lib/embeddings'
+import { errorResponse, validationError } from '@/lib/api-error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,10 +24,7 @@ export async function GET(request: NextRequest) {
   const mode = (searchParams.get('mode') || 'hybrid') as SearchMode
 
   if (!query && !tag) {
-    return NextResponse.json(
-      { error: 'Missing query parameter: q or tag' },
-      { status: 400 }
-    )
+    return validationError('Missing query parameter: q or tag')
   }
 
   try {
@@ -127,7 +125,51 @@ export async function GET(request: NextRequest) {
     }
 
     // Semantic or Hybrid: fetch all docs with embeddings, compute similarity
-    const queryEmbedding = await generateQueryEmbedding(query)
+    let queryEmbedding: number[]
+    try {
+      queryEmbedding = await generateQueryEmbedding(query)
+    } catch (embeddingErr) {
+      console.error(JSON.stringify({ error: 'Query embedding failed, falling back to keyword', details: embeddingErr instanceof Error ? embeddingErr.message : 'Unknown' }))
+      // Fallback to keyword search
+      const fallbackBody = {
+        size: 10,
+        query: {
+          bool: {
+            must: [{ multi_match: { query, fields: ['title^2', 'content'], fuzziness: 'AUTO' } }],
+            ...(filter.length > 0 ? { filter } : {}),
+          },
+        },
+        highlight: {
+          fields: {
+            title: { number_of_fragments: 0 },
+            content: { fragment_size: 150, number_of_fragments: 3 },
+          },
+          pre_tags: ['<mark>'],
+          post_tags: ['</mark>'],
+        },
+      }
+      const fallbackResponse = await client.search({
+        index: INDEX_NAME,
+        body: fallbackBody,
+      } as Parameters<typeof client.search>[0])
+      const fallbackHits = fallbackResponse.body.hits
+      const fallbackTotal = typeof fallbackHits.total === 'object' ? fallbackHits.total.value : fallbackHits.total
+      return NextResponse.json({
+        total: fallbackTotal,
+        mode: 'keyword',
+        fallback: true,
+        hits: fallbackHits.hits.map((hit: Record<string, unknown>) => {
+          const source = hit._source as HitSource
+          const { content_embedding: _, ...sourceWithoutEmbedding } = source
+          return {
+            id: hit._id,
+            score: hit._score,
+            source: sourceWithoutEmbedding,
+            highlight: hit.highlight ?? null,
+          }
+        }),
+      })
+    }
 
     const searchBody: Record<string, unknown> = {
       size: 100,
@@ -287,10 +329,6 @@ export async function GET(request: NextRequest) {
     if (meta?.statusCode === 404) {
       return NextResponse.json({ total: 0, hits: [], mode })
     }
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json(
-      { error: 'Search failed', details: message },
-      { status: 500 }
-    )
+    return errorResponse('Search failed', error)
   }
 }

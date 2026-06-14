@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import getClient from '@/lib/opensearch'
-import { INDEX_NAME } from '@/lib/constants'
+import { INDEX_NAME, EMBEDDING_DIMENSION } from '@/lib/constants'
+import { errorResponse } from '@/lib/api-error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,7 +32,6 @@ export async function POST() {
 
     return NextResponse.json({ status: 'created', message: 'Index recreated with embedding field' }, { status: 201 })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: 'Semantic setup failed', details: message }, { status: 500 })
+    return errorResponse('Semantic setup failed', error)
   }
 }

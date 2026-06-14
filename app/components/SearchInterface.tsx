@@ -41,9 +41,12 @@ export function SearchInterface() {
 
   function refreshTags() {
     fetch('/api/tags')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Tags fetch failed: ${r.status}`)
+        return r.json()
+      })
       .then(data => setAvailableTags(data.tags ?? []))
-      .catch(() => {})
+      .catch((err) => console.error('Failed to load tags:', err))
   }
 
   function onDocumentIndexed() {
@@ -93,10 +96,17 @@ export function SearchInterface() {
   }, [])
 
   useEffect(() => {
+    if (searchMode !== 'keyword') return
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(() => search(query, activeTags, searchMode), 300)
     return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current) }
   }, [query, activeTags, searchMode, search])
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter' && (searchMode === 'semantic' || searchMode === 'hybrid')) {
+      search(query, activeTags, searchMode)
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -142,7 +152,8 @@ export function SearchInterface() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={searchMode === 'semantic' ? 'Describe what you\'re looking for...' : 'Type to search documents...'}
+            onKeyDown={handleKeyDown}
+            placeholder={searchMode === 'keyword' ? 'Type to search documents...' : 'Type and press Enter to search...'}
             className="block w-full bg-transparent text-lg font-medium text-[var(--text)] placeholder:text-[var(--text-muted)] placeholder:font-normal focus:outline-none"
           />
         </div>

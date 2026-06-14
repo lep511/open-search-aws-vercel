@@ -1,27 +1,54 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 
 type Status = 'checking' | 'connected' | 'disconnected'
+
+const MAX_RETRIES = 3
 
 export function ConnectionStatus() {
   const [status, setStatus] = useState<Status>('checking')
   const [details, setDetails] = useState('')
+  const retryCount = useRef(0)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    async function check() {
-      try {
-        const res = await fetch('/api/health')
-        const data = await res.json()
-        setStatus(data.connected ? 'connected' : 'disconnected')
-        setDetails(data.connected ? `${data.indices} indices` : data.error)
-      } catch {
+  const check = useCallback(async () => {
+    try {
+      const res = await fetch('/api/health')
+      const data = await res.json()
+      if (data.connected) {
+        setStatus('connected')
+        setDetails(`${data.indices} indices`)
+        retryCount.current = 0
+      } else {
+        throw new Error(data.error || 'Not connected')
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error'
+      if (retryCount.current < MAX_RETRIES) {
+        retryCount.current++
+        const delay = Math.pow(2, retryCount.current) * 1000
+        timeoutRef.current = setTimeout(check, delay)
+      } else {
         setStatus('disconnected')
-        setDetails('Network error')
+        setDetails(message)
       }
     }
-    check()
   }, [])
+
+  function retry() {
+    retryCount.current = 0
+    setStatus('checking')
+    setDetails('')
+    check()
+  }
+
+  useEffect(() => {
+    check()
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    }
+  }, [check])
 
   return (
     <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)] tracking-wide">
@@ -34,6 +61,14 @@ export function ConnectionStatus() {
         {status === 'connected' && `Connected (${details})`}
         {status === 'disconnected' && `Disconnected: ${details}`}
       </span>
+      {status === 'disconnected' && (
+        <button
+          onClick={retry}
+          className="underline underline-offset-2 hover:text-[var(--text)] transition-colors"
+        >
+          retry
+        </button>
+      )}
     </div>
   )
 }

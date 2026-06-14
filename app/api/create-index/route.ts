@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import getClient from '@/lib/opensearch'
+import { errorResponse, validationError } from '@/lib/api-error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,13 +11,13 @@ export async function POST(request: NextRequest) {
   try {
     body = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    return validationError('Invalid JSON body')
   }
 
   const { index, mappings } = body
 
   if (!index) {
-    return NextResponse.json({ error: 'Missing required field: index' }, { status: 400 })
+    return validationError('Missing required field: index')
   }
 
   try {
@@ -31,7 +32,6 @@ export async function POST(request: NextRequest) {
       index: response.body.index,
     }, { status: 201 })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: 'Failed to create index', details: message }, { status: 500 })
+    return errorResponse('Failed to create index', error)
   }
 }

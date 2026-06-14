@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import getClient from '@/lib/opensearch'
 import { INDEX_NAME } from '@/lib/constants'
+import { errorResponse } from '@/lib/api-error'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,7 +35,6 @@ export async function GET() {
     if (meta?.statusCode === 404) {
       return NextResponse.json({ tags: [] })
     }
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: message, tags: [] }, { status: 500 })
+    return errorResponse('Failed to fetch tags', error)
   }
 }
