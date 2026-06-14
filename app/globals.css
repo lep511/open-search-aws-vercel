@@ -1,3 +1,86 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #fafafa;
+    --surface: rgba(255, 255, 255, 0.85);
+    --surface-border: rgba(0, 0, 0, 0.08);
+    --text: #111111;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --accent: #111111;
+    --grid-line: rgba(0, 0, 0, 0.06);
+    --grid-accent: rgba(0, 0, 0, 0.03);
+  }
+
+  .dark {
+    --bg: #0a0a0a;
+    --surface: rgba(18, 18, 18, 0.88);
+    --surface-border: rgba(255, 255, 255, 0.1);
+    --text: #f5f5f5;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666666;
+    --accent: #ffffff;
+    --grid-line: rgba(255, 255, 255, 0.06);
+    --grid-accent: rgba(255, 255, 255, 0.03);
+  }
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-accent) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-accent) 1px, transparent 1px);
+  background-size:
+    120px 120px,
+    120px 120px,
+    40px 40px,
+    40px 40px;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px) 60px 0 / 120px 120px,
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px) 0 60px / 120px 120px;
+  mask-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0px,
+      transparent 120px,
+      black 120px,
+      black 240px
+    );
+  -webkit-mask-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0px,
+      transparent 120px,
+      black 120px,
+      black 240px
+    );
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}

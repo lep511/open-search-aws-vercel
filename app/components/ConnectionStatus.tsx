@@ -23,18 +23,15 @@ export function ConnectionStatus() {
     check()
   }, [])
 
-  const colors = {
-    checking: 'bg-yellow-400',
-    connected: 'bg-green-400',
-    disconnected: 'bg-red-400',
-  }
-
   return (
-    <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-      <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status]}`} />
+    <div className="mt-3 flex items-center gap-2 text-xs text-[var(--text-muted)] tracking-wide">
+      <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+        status === 'checking' ? 'bg-[var(--text-muted)] animate-pulse' :
+        status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'
+      }`} />
       <span>
-        {status === 'checking' && 'Checking connection...'}
-        {status === 'connected' && `Connected to OpenSearch (${details})`}
+        {status === 'checking' && 'Connecting...'}
+        {status === 'connected' && `Connected (${details})`}
         {status === 'disconnected' && `Disconnected: ${details}`}
       </span>
     </div>

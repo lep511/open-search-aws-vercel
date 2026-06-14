@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getOpenSearchClient } from '@/lib/opensearch'
+import getClient from '@/lib/opensearch'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const client = getOpenSearchClient()
+    const client = getClient()
     const response = await client.cat.indices({ format: 'json' })
     return NextResponse.json({
       status: 'healthy',
