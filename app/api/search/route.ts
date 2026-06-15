@@ -206,6 +206,8 @@ export async function GET(request: NextRequest) {
 
     const rawHits = response.body.hits.hits as Record<string, unknown>[]
 
+    const SEMANTIC_THRESHOLD = 0.3
+
     // Score each hit by cosine similarity
     const scored = rawHits
       .map((hit) => {
@@ -214,11 +216,7 @@ export async function GET(request: NextRequest) {
         const semanticScore = embedding ? dotProduct(queryEmbedding, embedding) : 0
         return { hit, source, semanticScore }
       })
-      .filter(({ semanticScore, source }) => {
-        if (mode === 'semantic') return semanticScore > 0
-        // hybrid: include if has embedding or matches text
-        return semanticScore > 0 || source.content_embedding !== undefined
-      })
+      .filter(({ semanticScore }) => semanticScore >= SEMANTIC_THRESHOLD)
 
     if (mode === 'hybrid') {
       // Combine BM25 keyword score with semantic score

@@ -38,6 +38,7 @@ export function SearchInterface() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedDoc, setSelectedDoc] = useState<SearchHit | null>(null)
+  const [deletingDoc, setDeletingDoc] = useState<SearchHit | null>(null)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tagDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -133,6 +134,24 @@ export function SearchInterface() {
     setActiveTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setDeletingDoc(null)
+        search(query, activeTags, searchMode)
+        refreshTags()
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Delete failed')
+        setDeletingDoc(null)
+      }
+    } catch {
+      setError('Network error')
+      setDeletingDoc(null)
+    }
   }
 
   return (
@@ -277,8 +296,7 @@ export function SearchInterface() {
 
           <div className="space-y-4">
             {results.hits.map((hit) => {
-              const maxScore = results.hits[0]?.score || 1
-              const percent = Math.round((hit.score / maxScore) * 100)
+              const percent = Math.round(Math.min(hit.score, 1) * 100)
               const highlightedTitle = hit.highlight?.title?.[0]
               const highlightedContent = hit.highlight?.content?.join(' ... ')
               const displayContent = highlightedContent || truncate(hit.source.content, 200)
@@ -289,12 +307,20 @@ export function SearchInterface() {
                     <h3 className="text-base font-semibold [&_mark]:bg-[#bbf7d0] [&_mark]:dark:bg-[#22c55e33] [&_mark]:text-[var(--text)] [&_mark]:rounded-sm [&_mark]:px-0.5 [&_mark]:no-underline">
                       {highlightedTitle ? <HighlightedText html={highlightedTitle} /> : hit.source.title}
                     </h3>
-                    <button
-                      onClick={() => setSelectedDoc(hit)}
-                      className="shrink-0 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors underline underline-offset-4"
-                    >
-                      read
-                    </button>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        onClick={() => setSelectedDoc(hit)}
+                        className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors underline underline-offset-4"
+                      >
+                        read
+                      </button>
+                      <button
+                        onClick={() => setDeletingDoc(hit)}
+                        className="text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors underline underline-offset-4"
+                      >
+                        delete
+                      </button>
+                    </div>
                   </div>
                   <p className="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3 [&_mark]:bg-[#bbf7d0] [&_mark]:dark:bg-[#22c55e33] [&_mark]:text-[var(--text)] [&_mark]:rounded-sm [&_mark]:px-0.5 [&_mark]:no-underline [&_mark]:font-medium">
                     <HighlightedText html={displayContent} />
@@ -357,6 +383,34 @@ export function SearchInterface() {
                 ))}
               </div>
               <span>{new Date(selectedDoc.source.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg)]/90 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl shadow-2xl bg-white dark:bg-[#141414] border border-[var(--surface-border)] p-8">
+            <h2 className="text-lg font-semibold mb-2">Delete document</h2>
+            <p className="text-sm text-[var(--text-secondary)] mb-1">
+              Are you sure you want to delete this document?
+            </p>
+            <p className="text-sm font-medium text-[var(--text)] mb-6">
+              &ldquo;{deletingDoc.source.title}&rdquo;
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setDeletingDoc(null)}
+                className="text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deletingDoc.id)}
+                className="rounded-full bg-red-600 px-5 py-2 text-xs font-medium tracking-wide text-white transition-opacity hover:opacity-80"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
