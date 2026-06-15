@@ -39,6 +39,7 @@ export function SearchInterface() {
   const [error, setError] = useState<string | null>(null)
   const [selectedDoc, setSelectedDoc] = useState<SearchHit | null>(null)
   const [deletingDoc, setDeletingDoc] = useState<SearchHit | null>(null)
+  const [deleteToast, setDeleteToast] = useState<{ type: 'loading' | 'success' | 'error'; message: string } | null>(null)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tagDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -136,22 +137,42 @@ export function SearchInterface() {
     )
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, title: string) {
+    setDeletingDoc(null)
+    setDeleteToast({ type: 'loading', message: `Deleting "${title}"...` })
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000)
+
     try {
-      const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/documents/${id}`, {
+        method: 'DELETE',
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+
       if (res.ok) {
-        setDeletingDoc(null)
-        search(query, activeTags, searchMode)
+        setResults(prev => prev ? {
+          ...prev,
+          total: prev.total - 1,
+          hits: prev.hits.filter(h => h.id !== id),
+        } : null)
         refreshTags()
+        setDeleteToast({ type: 'success', message: `"${title}" deleted` })
       } else {
         const data = await res.json()
-        setError(data.error || 'Delete failed')
-        setDeletingDoc(null)
+        setDeleteToast({ type: 'error', message: data.error || 'Delete failed' })
       }
-    } catch {
-      setError('Network error')
-      setDeletingDoc(null)
+    } catch (err) {
+      clearTimeout(timeout)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setDeleteToast({ type: 'error', message: `Delete timed out for "${title}"` })
+      } else {
+        setDeleteToast({ type: 'error', message: 'Network error' })
+      }
     }
+
+    setTimeout(() => setDeleteToast(null), 4000)
   }
 
   return (
@@ -406,11 +427,36 @@ export function SearchInterface() {
                 Cancel
               </button>
               <button
-                onClick={() => handleDelete(deletingDoc.id)}
+                onClick={() => handleDelete(deletingDoc.id, deletingDoc.source.title)}
                 className="rounded-full bg-red-600 px-5 py-2 text-xs font-medium tracking-wide text-white transition-opacity hover:opacity-80"
               >
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteToast && (
+        <div className="fixed bottom-8 right-8 z-50">
+          <div className={`surface rounded-2xl px-6 py-4 text-sm tracking-wide shadow-xl ${
+            deleteToast.type === 'error' ? 'text-red-500' : 'text-[var(--text)]'
+          }`}>
+            <div className="flex items-center gap-3">
+              {deleteToast.type === 'loading' && (
+                <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-[var(--text-muted)] border-t-[var(--text)]" />
+              )}
+              {deleteToast.type === 'success' && (
+                <svg className="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {deleteToast.type === 'error' && (
+                <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+              <span className="font-medium">{deleteToast.message}</span>
             </div>
           </div>
         </div>
